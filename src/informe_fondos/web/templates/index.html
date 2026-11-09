@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informe de fondos · Generador web</title>
+<style>
+  :root {
+    --fondo: #f3f5f8;
+    --tarjeta: #ffffff;
+    --texto: #0f172a;
+    --suave: #64748b;
+    --tenue: #94a3b8;
+    --borde: #e5e9ef;
+    --teal: #0d9488;
+    --pos: #16a34a;
+    --neg: #dc2626;
+    --ambar: #d97706;
+    --radio: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #0b1220;
+      --tarjeta: #111a2b;
+      --texto: #e2e8f0;
+      --suave: #94a3b8;
+      --tenue: #64748b;
+      --borde: #1e293b;
+      --teal: #2dd4bf;
+      --pos: #4ade80;
+      --neg: #f87171;
+      --ambar: #fbbf24;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .contenedor { max-width: 980px; margin: 0 auto; padding: 42px 22px 70px; }
+  .kicker {
+    font-size: 11px; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--teal); margin-bottom: 8px;
+  }
+  h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.15; letter-spacing: -.02em; }
+  .entradilla { margin: 0; color: var(--suave); max-width: 720px; }
+  .enlace-ultimo { margin: 12px 0 0; font-size: 13px; }
+  .enlace-ultimo a { color: var(--teal); font-weight: 600; text-decoration: none; }
+  .enlace-ultimo a:hover { text-decoration: underline; }
+  .tarjeta {
+    margin-top: 26px; background: var(--tarjeta); border: 1px solid var(--borde);
+    border-radius: var(--radio); padding: 22px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  }
+  .rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+  .campo { display: flex; flex-direction: column; gap: 6px; }
+  .campo.ancho { grid-column: 1 / -1; }
+  .campo > span { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--tenue); }
+  .campo small { color: var(--tenue); font-size: 12px; }
+  input[type="text"], input[type="number"], select {
+    width: 100%; padding: 10px 12px; border-radius: 9px;
+    border: 1px solid var(--borde); background: var(--fondo); color: var(--texto);
+    font: inherit; font-size: 14px;
+  }
+  input:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--teal) 35%, transparent); outline-offset: 1px; border-color: var(--teal); }
+  input:disabled { opacity: .45; cursor: not-allowed; }
+  .check { flex-direction: row; align-items: center; gap: 9px; align-self: end; padding-bottom: 10px; }
+  .check input { width: 17px; height: 17px; accent-color: var(--teal); }
+  .check span { font-size: 14px; color: var(--texto); text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .acciones { display: flex; align-items: center; gap: 14px; margin-top: 20px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    border: 1px solid transparent; border-radius: 9px; padding: 10px 18px;
+  }
+  .principal { background: var(--teal); color: #042f2e; }
+  .principal:hover { filter: brightness(1.06); }
+  .principal:disabled { opacity: .55; cursor: wait; }
+  .secundario { background: transparent; color: var(--suave); border-color: var(--borde); padding: 6px 10px; font-size: 12.5px; }
+  .secundario:hover { color: var(--texto); border-color: var(--teal); }
+  .borrar:hover { color: var(--neg); border-color: var(--neg); }
+  .estado {
+    margin-top: 16px; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--borde); background: var(--fondo); font-size: 13.5px;
+  }
+  .estado.generando { border-color: var(--ambar); color: var(--ambar); }
+  .estado.ok { border-color: var(--pos); color: var(--pos); }
+  .estado.error { border-color: var(--neg); color: var(--neg); }
+  .estado pre {
+    margin: 8px 0 0; padding: 10px; max-height: 180px; overflow: auto;
+    white-space: pre-wrap; word-break: break-word;
+    background: var(--tarjeta); border-radius: 8px; color: var(--suave);
+    font-size: 12px;
+  }
+  .seccion { margin-top: 38px; }
+  .cab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .cab h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+  .cab span { color: var(--tenue); font-size: 13px; }
+  .tabla-envoltura {
+    background: var(--tarjeta); border: 1px solid var(--borde);
+    border-radius: var(--radio); overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--tenue); font-weight: 700; padding: 11px 14px;
+    border-bottom: 1px solid var(--borde); background: color-mix(in srgb, var(--fondo) 55%, var(--tarjeta));
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  tr:hover td { background: color-mix(in srgb, var(--teal) 6%, var(--tarjeta)); }
+  .nombre { font-weight: 600; word-break: break-all; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--suave); }
+  .acciones-fila { display: flex; gap: 6px; flex-wrap: wrap; }
+  .vacio { color: var(--suave); background: var(--tarjeta); border: 1px dashed var(--borde); border-radius: var(--radio); padding: 24px; text-align: center; }
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--borde); color: var(--tenue); font-size: 12px; }
+  footer p { margin: 0 0 6px; }
+  @media (max-width: 720px) {
+    .contenedor { padding: 26px 14px 50px; }
+    h1 { font-size: 26px; }
+    .rejilla { grid-template-columns: 1fr; }
+    .campo.ancho { grid-column: auto; }
+  }
+</style>
+</head>
+<body>
+<main class="contenedor">
+  <header>
+    <div class="kicker">Informe de fondos</div>
+    <h1>Genera un informe desde el navegador</h1>
+    <p class="entradilla">
+      Elige un ISIN o ticker, el periodo y tus aportaciones. El informe se genera
+      con datos de Yahoo Finance, IPC de España y gráficos interactivos, y queda
+      disponible para abrirlo o descargarlo.
+    </p>
+    {% if informes %}
+    <p class="enlace-ultimo"><a href="/ultimo" target="_blank" rel="noopener">Abrir el último informe generado →</a></p>
+    {% endif %}
+  </header>
+
+  <section class="tarjeta">
+    <form id="formulario" novalidate>
+      <div class="rejilla">
+        <label class="campo ancho">
+          <span>ISIN o ticker</span>
+          <input id="identificadores" name="identificadores" type="text"
+                 placeholder="IE00B03HCZ61, IE0032620787, IWDA.AS"
+                 autocomplete="off" spellcheck="false">
+          <small>Puedes poner varios separados por espacios o comas.</small>
+        </label>
+
+        <label class="campo check">
+          <input id="catalogo" name="catalogo" type="checkbox">
+          <span>Usar el catálogo completo (5 fondos)</span>
+        </label>
+
+        <label class="campo">
+          <span>Periodo</span>
+          <select name="periodo">
+            {% for valor, etiqueta in periodos %}
+            <option value="{{ valor }}"{% if valor == "5a" %} selected{% endif %}>{{ etiqueta }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="campo">
+          <span>Aportación</span>
+          <input name="aporta" type="number" min="1" max="100000" step="1" value="{{ aporta | round | int }}">
+        </label>
+
+        <label class="campo">
+          <span>Frecuencia de aportación</span>
+          <select name="frecuencia_aportacion">
+            <option value="mensual"{% if frecuencia == "mensual" %} selected{% endif %}>Mensual</option>
+            <option value="semanal"{% if frecuencia == "semanal" %} selected{% endif %}>Semanal</option>
+            <option value="quincenal"{% if frecuencia == "quincenal" %} selected{% endif %}>Quincenal</option>
+          </select>
+        </label>
+
+        <label class="campo">
+          <span>Tema del informe</span>
+          <select name="tema">
+            <option value="auto"{% if tema == "auto" %} selected{% endif %}>Automático</option>
+            <option value="claro"{% if tema == "claro" %} selected{% endif %}>Claro</option>
+            <option value="oscuro"{% if tema == "oscuro" %} selected{% endif %}>Oscuro</option>
+          </select>
+        </label>
+
+        <label class="campo">
+          <span>Inflación</span>
+          <select name="inflacion">
+            <option value="espana"{% if inflacion == "espana" %} selected{% endif %}>IPC de España</option>
+            <option value="ninguna"{% if inflacion == "ninguna" %} selected{% endif %}>Sin inflación</option>
+          </select>
+        </label>
+
+        <label class="campo">
+          <span>Índice de referencia</span>
+          <input name="benchmark" type="text" placeholder="IWDA.AS (por defecto)"
+                 autocomplete="off" spellcheck="false">
+        </label>
+
+        <label class="campo check">
+          <input id="sin_benchmark" name="sin_benchmark" type="checkbox">
+          <span>No comparar con ningún índice</span>
+        </label>
+
+        <label class="campo check">
+          <input id="cdn" name="cdn" type="checkbox" checked>
+          <span>HTML ligero (los gráficos necesitan internet)</span>
+        </label>
+      </div>
+
+      <div class="acciones">
+        <button id="boton" class="principal" type="submit">Generar informe</button>
+        <span style="color: var(--tenue); font-size: 12.5px;">El HTML se guarda en la carpeta <code>salida/</code>.</span>
+      </div>
+
+      <div id="estado" class="estado" hidden></div>
+    </form>
+  </section>
+
+  <section class="seccion">
+    <div class="cab">
+      <h2>Informes generados</h2>
+      <span>{{ informes|length }} archivo{% if informes|length != 1 %}s{% endif %}</span>
+    </div>
+
+    {% if informes %}
+    <div class="tabla-envoltura">
+      <table>
+        <thead>
+          <tr>
+            <th>Informe</th>
+            <th>Fecha</th>
+            <th class="num">Tamaño</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for informe in informes %}
+          <tr>
+            <td class="nombre">{{ informe.nombre }}</td>
+            <td>{{ informe.fecha }}</td>
+            <td class="num">{{ informe.kb | round | int }} KB</td>
+            <td>
+              <div class="acciones-fila">
+                <a class="secundario" href="{{ informe.url }}" target="_blank" rel="noopener">Abrir</a>
+                <a class="secundario" href="{{ informe.url }}?descargar=1">Descargar</a>
+                <button class="secundario borrar" type="button" data-borrar="{{ informe.nombre }}">Borrar</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="vacio">Todavía no hay informes. Genera el primero con el formulario de arriba.</p>
+    {% endif %}
+  </section>
+
+  <footer>
+    <p>
+      Los informes son archivos HTML autocontenidos. Se guardan en el volumen
+      <code>salida/</code> y puedes borrarlos desde esta página.
+    </p>
+    <p>
+      Herramienta formativa: no constituye asesoramiento financiero. Las
+      rentabilidades pasadas no garantizan rentabilidades futuras.
+    </p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  var formulario = document.getElementById('formulario');
+  var boton = document.getElementById('boton');
+  var estado = document.getElementById('estado');
+  var identificadores = document.getElementById('identificadores');
+  var catalogo = document.getElementById('catalogo');
+  var sinBenchmark = document.getElementById('sin_benchmark');
+
+  function sincronizarCatalogo() {
+    identificadores.disabled = catalogo.checked;
+    if (catalogo.checked) identificadores.value = '';
+  }
+  catalogo.addEventListener('change', sincronizarCatalogo);
+  sincronizarCatalogo();
+
+  function mostrar(tipo, mensaje, log) {
+    estado.hidden = false;
+    estado.className = 'estado ' + tipo;
+    estado.textContent = mensaje;
+    if (log) {
+      var pre = document.createElement('pre');
+      pre.textContent = log;
+      estado.appendChild(pre);
+    }
+  }
+
+  formulario.addEventListener('submit', async function (evento) {
+    evento.preventDefault();
+    var datos = {
+      identificadores: identificadores.value.trim(),
+      catalogo: catalogo.checked,
+      periodo: formulario.periodo.value,
+      aporta: Number(formulario.aporta.value),
+      frecuencia_aportacion: formulario.frecuencia_aportacion.value,
+      tema: formulario.tema.value,
+      inflacion: formulario.inflacion.value,
+      benchmark: formulario.benchmark.value.trim(),
+      sin_benchmark: sinBenchmark.checked,
+      cdn: document.getElementById('cdn').checked
+    };
+
+    boton.disabled = true;
+    mostrar('generando', 'Generando informe… Esto puede tardar unos segundos.');
+
+    try {
+      var respuesta = await fetch('/api/generar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+      });
+      var cuerpo = null;
+      try { cuerpo = await respuesta.json(); } catch (error) {}
+
+      if (!respuesta.ok) {
+        var detalle = cuerpo && cuerpo.detail;
+        var mensaje = 'No se ha podido generar el informe.';
+        var log = '';
+        if (typeof detalle === 'string') {
+          mensaje = detalle;
+        } else if (detalle && typeof detalle === 'object') {
+          mensaje = detalle.mensaje || mensaje;
+          log = detalle.log || '';
+        }
+        throw { mensaje: mensaje, log: log };
+      }
+
+      mostrar('ok', 'Informe generado. Abriéndolo en otra pestaña…');
+      var ventana = window.open(cuerpo.url, '_blank');
+      if (ventana) {
+        setTimeout(function () { window.location.reload(); }, 1200);
+      } else {
+        window.location.href = cuerpo.url;
+      }
+    } catch (error) {
+      mostrar(
+        'error',
+        (error && error.mensaje) || 'Error de conexión con el servidor.',
+        (error && error.log) || ''
+      );
+    } finally {
+      boton.disabled = false;
+    }
+  });
+
+  document.querySelectorAll('.borrar').forEach(function (botonBorrar) {
+    botonBorrar.addEventListener('click', async function () {
+      var nombre = botonBorrar.dataset.borrar;
+      if (!confirm('¿Borrar el informe «' + nombre + '»?')) return;
+      try {
+        var respuesta = await fetch('/api/informes/' + encodeURIComponent(nombre), {
+          method: 'DELETE'
+        });
+        if (!respuesta.ok) throw new Error('No se ha podido borrar.');
+        var fila = botonBorrar.closest('tr');
+        if (fila) fila.remove();
+      } catch (error) {
+        alert(error.message || 'No se ha podido borrar el informe.');
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

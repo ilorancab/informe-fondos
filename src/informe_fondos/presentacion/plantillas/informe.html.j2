@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ titulo }} · Informe de seguimiento</title>
+{{ plotly_js | safe }}
+<style>
+  :root {
+    --fondo: #f3f5f8;
+    --tarjeta: #ffffff;
+    --texto: #0f172a;
+    --suave: #64748b;
+    --tenue: #94a3b8;
+    --borde: #e5e9ef;
+    --teal: #0d9488;
+    --pos: #16a34a;
+    --neg: #dc2626;
+    --ambar: #d97706;
+    --radio: 14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .contenedor { max-width: 1080px; margin: 0 auto; padding: 40px 24px 72px; }
+
+  /* Portada */
+  .portada { padding: 8px 0 28px; border-bottom: 1px solid var(--borde); }
+  .kicker {
+    font-size: 11px; font-weight: 600; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--teal); margin-bottom: 10px;
+  }
+  .portada h1 { margin: 0 0 10px; font-size: 34px; line-height: 1.15; letter-spacing: -.02em; }
+  .entradilla { margin: 0; color: var(--suave); max-width: 760px; font-size: 15px; }
+
+  /* Secciones */
+  .seccion { margin-top: 40px; }
+  .seccion-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .seccion-cab h2 { margin: 0; font-size: 21px; letter-spacing: -.01em; }
+  .seccion-cab p { margin: 0; color: var(--suave); font-size: 13px; }
+  .ficha + .ficha { margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--borde); }
+
+  .ficha-cab { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 18px; }
+  .ficha-cab h2 { margin: 0 0 8px; font-size: 25px; letter-spacing: -.015em; }
+  .ficha-meta { text-align: right; color: var(--suave); font-size: 12.5px; line-height: 1.7; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    display: inline-block; padding: 3px 9px; border-radius: 999px;
+    background: #eef2f6; color: #475569; font-size: 11.5px; font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .chip.isin { background: #ccfbf1; color: #0f766e; }
+
+  /* KPIs */
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 18px; }
+  .kpi {
+    background: var(--tarjeta); border: 1px solid var(--borde);
+    border-radius: var(--radio); padding: 14px 14px 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  }
+  .kpi-etiqueta { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--tenue); }
+  .kpi-valor { font-size: 21px; font-weight: 700; letter-spacing: -.02em; margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .kpi-pie { font-size: 11px; color: var(--tenue); margin-top: 3px; }
+  .pos { color: var(--pos); }
+  .neg { color: var(--neg); }
+  .neu { color: var(--texto); }
+
+  /* Lectura rápida */
+  .lectura {
+    background: #f0fdfa; border: 1px solid #ccfbf1;
+    border-radius: var(--radio); padding: 14px 20px; margin-bottom: 12px;
+  }
+  .lectura-titulo {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: #0f766e; margin-bottom: 6px;
+  }
+  .lectura ul { margin: 0; padding-left: 18px; }
+  .lectura li { font-size: 13.5px; color: #334155; margin: 3px 0; }
+
+  /* Tarjetas y gráficos */
+  .tarjeta {
+    background: var(--tarjeta); border: 1px solid var(--borde);
+    border-radius: var(--radio); padding: 16px 16px 6px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  }
+  .tarjeta-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 4px 6px; }
+  .tarjeta-cab h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .tarjeta-cab span { font-size: 12px; color: var(--tenue); }
+  .rejilla-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .rejilla-1 { margin-top: 12px; }
+
+  /* Tablas */
+  .tabla-envoltura { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: var(--radio); overflow: hidden; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--tenue); font-weight: 600; padding: 12px 16px; border-bottom: 1px solid var(--borde);
+    background: #fafbfc;
+  }
+  tbody td { padding: 9px 16px; border-bottom: 1px solid #f1f4f8; font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: #f8fafc; }
+  .num { text-align: right; }
+  .destacado { font-weight: 600; }
+  .nota { margin: 10px 4px 12px; font-size: 12px; color: var(--suave); }
+  .nota strong { color: var(--texto); font-weight: 600; }
+
+  /* Simulador */
+  .dca-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 6px 4px 4px; }
+  .mini { background: #f8fafc; border: 1px solid #eef2f6; border-radius: 10px; padding: 10px 12px; }
+  .mini-etiqueta { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--tenue); font-weight: 600; }
+  .mini-valor { font-size: 16px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  /* Glosario */
+  .glosario { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px; background: var(--tarjeta); border: 1px solid var(--borde); border-radius: var(--radio); padding: 22px 24px; }
+  .glosario div { font-size: 13.5px; color: var(--suave); }
+  .glosario strong { display: block; color: var(--texto); font-size: 13.5px; margin-bottom: 2px; }
+
+  /* Tema oscuro */
+  body.oscuro {
+    --fondo: #0b1220;
+    --tarjeta: #111a2b;
+    --texto: #e2e8f0;
+    --suave: #94a3b8;
+    --tenue: #64748b;
+    --borde: #1e293b;
+    --teal: #2dd4bf;
+    --pos: #4ade80;
+    --neg: #f87171;
+    --ambar: #fbbf24;
+  }
+  body.oscuro .chip { background: #1e293b; color: #cbd5e1; }
+  body.oscuro .chip.isin { background: #134e4a; color: #5eead4; }
+  body.oscuro .lectura { background: #0f2a2a; border-color: #134e4a; }
+  body.oscuro .lectura-titulo { color: #5eead4; }
+  body.oscuro .lectura li { color: #cbd5e1; }
+  body.oscuro thead th { background: #0f172a; }
+  body.oscuro tbody td { border-bottom-color: #1e293b; }
+  body.oscuro tbody tr:hover td { background: #16213a; }
+  body.oscuro .mini { background: #0f172a; border-color: #1e293b; }
+  body.oscuro .kpi,
+  body.oscuro .tarjeta,
+  body.oscuro .tabla-envoltura { box-shadow: none; }
+
+  /* Ajustes de Plotly para el tema oscuro */
+  body.oscuro .plotly .xtick text,
+  body.oscuro .plotly .ytick text,
+  body.oscuro .plotly .legendtext { fill: #94a3b8 !important; }
+  body.oscuro .plotly .gridlayer path { stroke: #1e293b !important; }
+  body.oscuro .plotly .xlines-above path,
+  body.oscuro .plotly .ylines-above path { stroke: #334155 !important; }
+  body.oscuro .plotly .zerolinelayer path { stroke: #475569 !important; }
+  body.oscuro .plotly .bartext { fill: #cbd5e1 !important; }
+  body.oscuro .plotly .rangeselector .button rect {
+    fill: #1e293b !important; stroke: #334155 !important;
+  }
+  body.oscuro .plotly .rangeselector .button text { fill: #cbd5e1 !important; }
+  body.oscuro .plotly .hoverlayer .hovertext path {
+    fill: #1e293b !important; stroke: #475569 !important;
+  }
+  body.oscuro .plotly .hoverlayer .hovertext text { fill: #e2e8f0 !important; }
+
+  /* Botón de cambio de tema */
+  .boton-tema {
+    position: fixed; top: 16px; right: 16px; z-index: 100;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--borde); background: var(--tarjeta);
+    color: var(--suave); font: inherit; font-size: 12px; font-weight: 600;
+    cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, .08);
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .boton-tema:hover { color: var(--texto); border-color: var(--teal); }
+  body.oscuro .boton-tema { box-shadow: none; }
+
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--borde); color: var(--tenue); font-size: 12px; }
+  footer p { margin: 0 0 6px; }
+
+  @media (max-width: 900px) {
+    .kpis { grid-template-columns: repeat(3, 1fr); }
+    .rejilla-2 { grid-template-columns: 1fr; }
+    .dca-kpis { grid-template-columns: repeat(2, 1fr); }
+    .glosario { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .contenedor { padding: 24px 14px 48px; }
+    .portada h1 { font-size: 26px; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .ficha-meta { text-align: left; }
+  }
+  @media print {
+    body { background: #fff; }
+    .boton-tema { display: none; }
+    .contenedor { max-width: none; padding: 0; }
+    .tarjeta, .kpi, .tabla-envoltura { box-shadow: none; break-inside: avoid; }
+    .ficha + .ficha { page-break-before: always; }
+    .portada h1 { font-size: 28px; }
+  }
+</style>
+</head>
+<body{% if tema == 'oscuro' %} class="oscuro"{% endif %}>
+<script>
+(function () {
+  var guardado = null;
+  try { guardado = localStorage.getItem('informe-fondos-tema'); } catch (e) {}
+  var inicial = {{ tema | tojson }};
+  var oscuro;
+  if (guardado) {
+    oscuro = guardado === 'oscuro';
+  } else if (inicial === 'auto') {
+    oscuro = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  } else {
+    oscuro = inicial === 'oscuro';
+  }
+  document.body.classList.toggle('oscuro', oscuro);
+})();
+</script>
+<button id="boton-tema" class="boton-tema" type="button" aria-label="Cambiar tema">🌙 Tema oscuro</button>
+<div class="contenedor">
+
+  <header class="portada">
+    <div class="kicker">Informe de seguimiento · {{ fecha_generacion | fecha }}</div>
+    <h1>{{ titulo }}</h1>
+    <p class="entradilla">
+      Análisis de la evolución, el riesgo y las rentabilidades históricas
+      {% if fondos|length == 1 %}del fondo{% else %}de la cartera{% endif %},
+      elaborado con datos públicos de Yahoo Finance.
+      Datos de mercado hasta el <strong>{{ fondos[0].fecha_datos | fecha }}</strong>.
+      {% if benchmark_nombre %}Referencia comparativa: <strong>{{ benchmark_nombre }}</strong>{% if benchmark_divisa %} (precio en {{ benchmark_divisa }}){% endif %}.{% endif %}
+    </p>
+  </header>
+
+  {% if comparativa %}
+  <section class="seccion">
+    <div class="seccion-cab">
+      <h2>Comparativa de la cartera</h2>
+      <p>Base 100 desde el {{ comparativa.desde | fecha }}</p>
+    </div>
+    <div class="tarjeta">{{ comparativa.grafico | safe }}</div>
+    <div class="tabla-envoltura" style="margin-top: 12px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Fondo</th>
+            <th>Identificador</th>
+            <th class="num">Rentabilidad del periodo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in comparativa.filas %}
+          <tr>
+            <td class="destacado">{{ fila.nombre }}</td>
+            <td>{{ fila.etiqueta }}</td>
+            <td class="num {{ fila.rentabilidad | clase }}">{{ fila.rentabilidad | porcentaje }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% for f in fondos %}
+  <section class="seccion ficha">
+    <div class="ficha-cab">
+      <div>
+        {% if fondos|length > 1 %}<h2>{{ f.nombre }}</h2>{% endif %}
+        <div class="chips">
+          {% if f.isin %}<span class="chip isin">{{ f.isin }}</span>{% endif %}
+          <span class="chip">{{ f.simbolo }}</span>
+          <span class="chip">{{ f.divisa }}</span>
+          <span class="chip">{{ f.mercado }}</span>
+          <span class="chip">{{ f.tipo }}</span>
+          {% if f.frecuencia_plural and f.frecuencia_plural != "—" %}<span class="chip">datos {{ f.frecuencia_plural }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="ficha-meta">
+        <div>{{ f.num_datos }} observaciones · {{ f.anios_historial | numero(1) }} años</div>
+        <div>{{ f.fecha_inicio | fecha }} — {{ f.fecha_datos | fecha }}</div>
+      </div>
+    </div>
+
+    <div class="kpis">
+      {% for k in f.kpis %}
+      <div class="kpi">
+        <div class="kpi-etiqueta">{{ k.etiqueta }}</div>
+        <div class="kpi-valor {{ k.clase }}">{{ k.valor }}</div>
+        <div class="kpi-pie">{{ k.pie }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if f.lecturas %}
+    <div class="lectura">
+      <div class="lectura-titulo">Lectura rápida</div>
+      <ul>
+        {% for frase in f.lecturas %}<li>{{ frase }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <div class="tarjeta">
+      <div class="tarjeta-cab">
+        <h3>Evolución del valor</h3>
+        <span>Serie ajustada por dividendos · {{ f.divisa }}</span>
+      </div>
+      {{ f.graficos.evolucion | safe }}
+    </div>
+
+    <div class="{% if f.graficos.comparativa %}rejilla-2{% else %}rejilla-1{% endif %}">
+      <div class="tarjeta">
+        <div class="tarjeta-cab">
+          <h3>Caídas desde máximos</h3>
+          <span>desde {{ f.fecha_inicio | fecha }}</span>
+        </div>
+        {{ f.graficos.caidas | safe }}
+      </div>
+      {% if f.graficos.comparativa %}
+      <div class="tarjeta">
+        <div class="tarjeta-cab">
+          <h3>Frente a su índice</h3>
+          <span>base 100</span>
+        </div>
+        {{ f.graficos.comparativa | safe }}
+        <p class="nota">
+          Correlación {{ f.comparacion.frecuencia_correlacion }}: <strong>{{ f.comparacion.correlacion | numero(2) }}</strong>
+          · Beta: <strong>{{ f.comparacion.beta | numero(2) }}</strong>.
+          Una beta cercana a 1 indica que el fondo se mueve como su referencia.
+        </p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="rejilla-2">
+      <div class="tarjeta">
+        <div class="tarjeta-cab">
+          <h3>Rentabilidad por año natural</h3>
+          <span>{% if f.mejor_anio %}mejor: {{ f.mejor_anio.anio }} ({{ f.mejor_anio.rentabilidad | porcentaje }}){% endif %}</span>
+        </div>
+        {{ f.graficos.anuales | safe }}
+        {% if f.mejor_anio and f.peor_anio %}
+        <p class="nota">
+          Mejor año: <strong class="pos">{{ f.mejor_anio.anio }} · {{ f.mejor_anio.rentabilidad | porcentaje }}</strong>
+          {% if f.peor_anio and f.peor_anio.anio != f.mejor_anio.anio %}
+          · Peor año: <strong class="neg">{{ f.peor_anio.anio }} · {{ f.peor_anio.rentabilidad | porcentaje }}</strong>
+          {% endif %}
+          {% if f.anuales | selectattr("parcial") | list %}· <span title="El primer o el último año no está completo">* año incompleto</span>{% endif %}
+          · Calculado con el último dato disponible de cada año.
+        </p>
+        {% endif %}
+      </div>
+      <div class="tarjeta">
+        <div class="tarjeta-cab">
+          <h3>Rentabilidad mes a mes</h3>
+          <span>{% if f.mensual.filas|length == 1 %}último año{% else %}últimos {{ f.mensual.filas | length }} años{% endif %}</span>
+        </div>
+        {% if f.mensual.filas %}
+        {{ f.graficos.mensual | safe }}
+        {% if f.mensual.mejor and f.mensual.peor %}
+        <p class="nota">
+          Mejor mes: <strong class="pos">{{ f.mensual.mejor.retorno | porcentaje }}</strong>
+          · Peor mes: <strong class="neg">{{ f.mensual.peor.retorno | porcentaje }}</strong>
+        </p>
+        {% endif %}
+        {% else %}
+        <p class="nota">Hace falta más historial para construir esta tabla.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="rejilla-1">
+      <div class="tabla-envoltura">
+        <table>
+          <thead>
+            <tr>
+              <th>Periodo</th>
+              <th class="num">Rentabilidad</th>
+              {% if f.ipc_activo %}
+              <th class="num">Inflación</th>
+              <th class="num">Real</th>
+              {% endif %}
+              <th class="num">Anualizada</th>
+              <th class="num">Días</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in f.rentabilidades %}
+            <tr>
+              <td>{{ fila.etiqueta }}</td>
+              <td class="num {{ fila.rentabilidad | clase }}">{{ fila.rentabilidad | porcentaje }}</td>
+              {% if f.ipc_activo %}
+              <td class="num {{ fila.inflacion | clase }}">{{ fila.inflacion | porcentaje }}</td>
+              <td class="num {{ fila.real | clase }}">{{ fila.real | porcentaje }}</td>
+              {% endif %}
+              <td class="num">
+                {% if fila.anualizada is not none and fila.codigo in ["3a", "5a", "10a", "max"] %}
+                  {{ fila.anualizada | porcentaje }}
+                {% else %}—{% endif %}
+              </td>
+              <td class="num" style="color: var(--tenue);">{{ fila.dias if fila.dias is not none else "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="nota">
+        Rentabilidades calculadas sobre la serie ajustada por dividendos, en la divisa del fondo
+        ({{ f.divisa }}). La columna «anualizada» convierte la rentabilidad del periodo en una
+        tasa media anual compuesta.
+        {% if f.ipc_activo %}
+        La columna «real» descuenta el IPC general de España (INE, base 2021) hasta
+        la última publicación disponible.
+        {% endif %}
+      </p>
+    </div>
+
+    {% if f.inflacion %}
+    <div class="tarjeta" style="margin-top: 12px; padding-bottom: 12px;">
+      <div class="tarjeta-cab">
+        <h3>Inflación y rentabilidad real</h3>
+        <span>IPC España · {{ f.inflacion.inicio | fecha }} — {{ f.inflacion.fin | fecha }}</span>
+      </div>
+      <div class="dca-kpis">
+        <div class="mini">
+          <div class="mini-etiqueta">Inflación acumulada</div>
+          <div class="mini-valor {{ f.inflacion.inflacion | clase }}">{{ f.inflacion.inflacion | porcentaje }}</div>
+        </div>
+        <div class="mini">
+          <div class="mini-etiqueta">Inflación anualizada</div>
+          <div class="mini-valor {{ f.inflacion.inflacion_anual | clase }}">{{ f.inflacion.inflacion_anual | porcentaje }}</div>
+        </div>
+        <div class="mini">
+          <div class="mini-etiqueta">Rentabilidad nominal</div>
+          <div class="mini-valor {{ f.inflacion.nominal | clase }}">{{ f.inflacion.nominal | porcentaje }}</div>
+        </div>
+        <div class="mini">
+          <div class="mini-etiqueta">Rentabilidad real</div>
+          <div class="mini-valor {{ f.inflacion.real | clase }}">{{ f.inflacion.real | porcentaje }}</div>
+        </div>
+        <div class="mini">
+          <div class="mini-etiqueta">Real anualizada</div>
+          <div class="mini-valor {{ f.inflacion.real_anual | clase }}">{{ f.inflacion.real_anual | porcentaje }}</div>
+        </div>
+      </div>
+      {% if f.graficos.inflacion %}
+      {{ f.graficos.inflacion | safe }}
+      {% endif %}
+      <p class="nota">
+        La rentabilidad real se calcula como
+        <strong>(1 + nominal) / (1 + IPC) − 1</strong>. Se usa el índice general nacional
+        del IPC (INE, base 2021), no la tasa interanual, para que el acumulado sea exacto.
+        {% if f.inflacion.ipc_hasta %}Último dato de IPC disponible:
+        <strong>{{ f.inflacion.ipc_hasta | fecha }}</strong>; la inflación se aplica
+        hasta esa fecha.{% endif %}
+        Las tres líneas del gráfico están normalizadas a 100 al inicio del periodo:
+        «Fondo en euros de hoy» es el fondo nominal descontando la subida de precios.
+      </p>
+    </div>
+    {% endif %}
+
+    {% if f.dca %}
+    <div class="tarjeta" style="margin-top: 12px; padding-bottom: 12px;">
+      <div class="tarjeta-cab">
+        <h3>Si hubieras aportado {{ f.aportacion | dinero(f.divisa) }} {{ f.aporta_etiqueta }}</h3>
+        <span>{{ f.dca.num_aportaciones }} aportaciones · {{ f.periodo }}</span>
+      </div>
+      <div class="dca-kpis">
+        <div class="mini">
+          <div class="mini-etiqueta">Aportado</div>
+          <div class="mini-valor">{{ f.dca.invertido | dinero(f.divisa, 0) }}</div>
+        </div>
+        <div class="mini">
+          <div class="mini-etiqueta">Valor actual</div>
+          <div class="mini-valor">{{ f.dca.valor_final | dinero(f.divisa, 0) }}</div>
+        </div>
+        <div class="mini">
+          <div class="mini-etiqueta">Beneficio</div>
+          <div class="mini-valor {{ f.dca.beneficio | clase }}">{{ f.dca.beneficio | dinero(f.divisa, 0) }}</div>
+        </div>
+        <div class="mini">
+          <div class="mini-etiqueta">Rentabilidad</div>
+          <div class="mini-valor {{ f.dca.rentabilidad | clase }}">{{ f.dca.rentabilidad | porcentaje }}</div>
+        </div>
+        <div class="mini">
+          <div class="mini-etiqueta">TIR anual</div>
+          <div class="mini-valor {{ f.dca.tir | clase }}">{{ f.dca.tir | porcentaje }}</div>
+        </div>
+      </div>
+      {{ f.graficos.dca | safe }}
+      <p class="nota">
+        Se compra el primer día hábil de cada {{ f.aporta_periodo }} al valor liquidativo de ese día, sin comisiones
+        ni impuestos. La TIR es la rentabilidad anualizada que iguala las aportaciones con el valor
+        final. Como comparación, invertir todo el dinero al inicio
+        ({{ f.dca.invertido | dinero(f.divisa, 0) }}) habría dado
+        <strong class="{{ f.dca.rentabilidad_si_unica | clase }}">{{ f.dca.rentabilidad_si_unica | porcentaje }}</strong>.
+      </p>
+    </div>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <section class="seccion">
+    <div class="seccion-cab">
+      <h2>Cómo leer este informe</h2>
+      <p>Conceptos clave que aparecen en las fichas</p>
+    </div>
+    <div class="glosario">
+      <div>
+        <strong>Valor liquidativo (VL)</strong>
+        Precio de una participación del fondo. Se calcula dividiendo el patrimonio del fondo
+        entre el número de participaciones, una vez descontadas las comisiones.
+      </div>
+      <div>
+        <strong>Rentabilidad anualizada</strong>
+        Tasa media anual compuesta que habría producido la rentabilidad del periodo. Permite
+        comparar periodos de distinta duración.
+      </div>
+      <div>
+        <strong>Rentabilidad real</strong>
+        Rentabilidad nominal una vez descontada la inflación. Si un fondo gana un 5 % y los
+        precios suben un 3 %, la rentabilidad real es aproximadamente un 2 %: lo que de verdad
+        ha aumentado tu poder de compra.
+      </div>
+      <div>
+        <strong>Volatilidad</strong>
+        Desviación típica de las rentabilidades diarias, anualizada. Mide cuánto oscila el valor:
+        más volatilidad implica más riesgo, pero no necesariamente peor resultado a largo plazo.
+      </div>
+      <div>
+        <strong>Máxima caída (drawdown)</strong>
+        La peor pérdida desde un máximo anterior. Responde a la pregunta «¿cuánto habría llegado
+        a bajar mi inversión en el peor momento?».
+      </div>
+      <div>
+        <strong>Sharpe</strong>
+        Rentabilidad obtenida por unidad de riesgo asumido, descontando la tasa libre de riesgo.
+        Por encima de 1 suele considerarse bueno; por debajo de 0, el fondo no ha compensado el riesgo.
+      </div>
+      <div>
+        <strong>TIR y aportaciones periódicas</strong>
+        La TIR (tasa interna de retorno) es la rentabilidad anual real de una serie de aportaciones.
+        Al invertir poco a poco, la TIR puede diferir bastante de la rentabilidad del fondo.
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Fuente de datos: Yahoo Finance (API pública, sin clave). Serie ajustada por dividendos
+      y expresada en la divisa del instrumento. Última observación disponible:
+      {{ fondos[0].fecha_datos | fecha }}.
+      {% if fondos[0].ipc_activo %}
+      La inflación procede del INE (índice general nacional del IPC, base 2021).
+      {% endif %}
+    </p>
+    <p>
+      Informe generado automáticamente el {{ fecha_generacion | fecha }} con fines formativos.
+      No constituye asesoramiento financiero ni una recomendación de compra o venta. Las
+      rentabilidades pasadas no garantizan rentabilidades futuras.
+    </p>
+  </footer>
+
+</div>
+<script>
+(function () {
+  var clave = 'informe-fondos-tema';
+  var inicial = {{ tema | tojson }};
+  var boton = document.getElementById('boton-tema');
+  var body = document.body;
+
+  function pintar(tema) {
+    var oscuro = tema === 'oscuro';
+    body.classList.toggle('oscuro', oscuro);
+    boton.textContent = oscuro ? '☀️ Tema claro' : '🌙 Tema oscuro';
+    boton.setAttribute('aria-pressed', oscuro ? 'true' : 'false');
+  }
+
+  var guardado = null;
+  try { guardado = localStorage.getItem(clave); } catch (e) {}
+  var tema = guardado || inicial;
+  if (tema === 'auto') {
+    tema = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      ? 'oscuro' : 'claro';
+  }
+  pintar(tema);
+
+  boton.addEventListener('click', function () {
+    tema = body.classList.contains('oscuro') ? 'claro' : 'oscuro';
+    try { localStorage.setItem(clave, tema); } catch (e) {}
+    pintar(tema);
+  });
+})();
+</script>
+</body>
+</html>
