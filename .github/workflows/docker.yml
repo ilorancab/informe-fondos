@@ -10,8 +10,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --frozen
       - run: uv run pytest -q
 
@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Comprobar secretos de Docker Hub
         id: dockerhub
@@ -36,12 +36,12 @@ jobs:
             echo "::notice::Faltan DOCKERHUB_USERNAME o DOCKERHUB_TOKEN; se omite la publicación de la imagen."
           fi
 
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
         if: steps.dockerhub.outputs.disponible == 'true'
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: steps.dockerhub.outputs.disponible == 'true'
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         if: steps.dockerhub.outputs.disponible == 'true'
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -49,7 +49,7 @@ jobs:
 
       - id: meta
         if: steps.dockerhub.outputs.disponible == 'true'
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/informe-fondos
           tags: |
@@ -58,7 +58,7 @@ jobs:
             type=semver,pattern={{version}}
             type=sha,prefix=sha-
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         if: steps.dockerhub.outputs.disponible == 'true'
         with:
           context: .
