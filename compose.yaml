@@ -20,6 +20,7 @@ services:
       # Protección opcional con HTTP Basic. Si están vacíos, no hay login.
       WEB_USUARIO: ${WEB_USUARIO:-}
       WEB_CLAVE: ${WEB_CLAVE:-}
+      TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY:-}
     volumes:
       - ./datos:/app/datos
       - ./salida:/app/salida

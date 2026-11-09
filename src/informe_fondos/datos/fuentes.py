@@ -168,7 +168,7 @@ def _archivo_cache(simbolo: str) -> str:
 # Resolución de ISIN / ticker -> símbolo de Yahoo
 # --------------------------------------------------------------------------
 
-def _buscar_candidatos(consulta: str) -> list[dict]:
+def _buscar_candidatos(consulta: str, rapido: bool = False) -> list[dict]:
     parametros = urllib.parse.urlencode(
         {
             "q": consulta,
@@ -177,8 +177,52 @@ def _buscar_candidatos(consulta: str) -> list[dict]:
             "enableFuzzyQuery": "false",
         }
     )
-    datos = _get_json(f"{_BUSQUEDA}?{parametros}")
+    if rapido:
+        datos = _get_json(f"{_BUSQUEDA}?{parametros}", timeout=6, intentos=1)
+    else:
+        datos = _get_json(f"{_BUSQUEDA}?{parametros}")
     return datos.get("quotes") or []
+
+
+def buscar_candidatos(consulta: str, limite: int = 8) -> list[dict]:
+    """Busca fondos y ETFs por nombre, ISIN o ticker para el buscador web.
+
+    Devuelve una lista de diccionarios sencillos, ya filtrada y ordenada, sin
+    descargar metadatos adicionales. Usa un modo rápido (un solo intento y
+    timeout corto) para no bloquear la interfaz si Yahoo va lento.
+    """
+    consulta = consulta.strip()
+    if len(consulta) < 2:
+        return []
+
+    candidatos = _buscar_candidatos(consulta, rapido=True)
+    resultados = []
+    for candidato in sorted(candidatos, key=_puntuar, reverse=True):
+        tipo = (candidato.get("quoteType") or "").upper()
+        if tipo not in ("ETF", "MUTUALFUND"):
+            continue
+        simbolo = candidato.get("symbol")
+        if not simbolo:
+            continue
+        nombre = (
+            candidato.get("longname")
+            or candidato.get("shortname")
+            or candidato.get("longName")
+            or candidato.get("shortName")
+            or simbolo
+        )
+        resultados.append(
+            {
+                "simbolo": simbolo,
+                "nombre": nombre,
+                "isin": consulta.upper() if es_isin(consulta) else None,
+                "mercado": candidato.get("exchDisp") or candidato.get("exchange") or "",
+                "tipo": "Fondo" if tipo == "MUTUALFUND" else "ETF",
+            }
+        )
+        if len(resultados) >= limite:
+            break
+    return resultados
 
 
 def _puntuar(candidato: dict) -> int:

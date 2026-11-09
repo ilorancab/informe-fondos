@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Informe de fondos · Generador web</title>
+<meta name="description" content="Genera informes de fondos indexados y ETFs: rentabilidad, riesgo, inflación real y simulación de aportaciones periódicas.">
+<title>Informes de fondos indexados y ETFs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d9488'/%3E%3Cpath d='M16 44V28l10 8 10-14 12 22' fill='none' stroke='%23fff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
   :root {
     --fondo: #f3f5f8;
@@ -41,21 +43,33 @@
     font-size: 15px;
     line-height: 1.55;
   }
-  .contenedor { max-width: 980px; margin: 0 auto; padding: 42px 22px 70px; }
+  .contenedor { max-width: 1040px; margin: 0 auto; padding: 42px 22px 70px; }
   .kicker {
     font-size: 11px; font-weight: 700; letter-spacing: .14em;
     text-transform: uppercase; color: var(--teal); margin-bottom: 8px;
   }
-  h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.15; letter-spacing: -.02em; }
-  .entradilla { margin: 0; color: var(--suave); max-width: 720px; }
-  .enlace-ultimo { margin: 12px 0 0; font-size: 13px; }
-  .enlace-ultimo a { color: var(--teal); font-weight: 600; text-decoration: none; }
-  .enlace-ultimo a:hover { text-decoration: underline; }
+  h1 { margin: 0 0 10px; font-size: 34px; line-height: 1.12; letter-spacing: -.025em; }
+  .entradilla { margin: 0; color: var(--suave); max-width: 760px; }
+  .enlace-ultimo { margin: 16px 0 0; font-size: 13px; }
+  .boton-enlace {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px;
+    border: 1px solid var(--borde); border-radius: 9px; color: var(--teal);
+    background: var(--tarjeta); font-weight: 600; text-decoration: none;
+  }
+  .boton-enlace:hover { border-color: var(--teal); }
   .tarjeta {
     margin-top: 26px; background: var(--tarjeta); border: 1px solid var(--borde);
     border-radius: var(--radio); padding: 22px;
     box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
   }
+  .bloque { padding-top: 18px; margin-top: 18px; border-top: 1px solid var(--borde); }
+  .bloque:first-of-type { padding-top: 0; margin-top: 0; border-top: 0; }
+  .bloque-cab {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .bloque-cab h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+  .bloque-cab p { margin: 0; color: var(--tenue); font-size: 12.5px; }
   .rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
   .campo { display: flex; flex-direction: column; gap: 6px; }
   .campo.ancho { grid-column: 1 / -1; }
@@ -71,7 +85,71 @@
   .check { flex-direction: row; align-items: center; gap: 9px; align-self: end; padding-bottom: 10px; }
   .check input { width: 17px; height: 17px; accent-color: var(--teal); }
   .check span { font-size: 14px; color: var(--texto); text-transform: none; letter-spacing: 0; font-weight: 500; }
-  .acciones { display: flex; align-items: center; gap: 14px; margin-top: 20px; flex-wrap: wrap; }
+  .check-catalogo { margin-top: 18px; padding-bottom: 0; }
+
+  .zona-seleccion.off { opacity: .45; pointer-events: none; }
+  .buscador-envoltura { position: relative; }
+  .resultados {
+    position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px);
+    background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, .14); max-height: 300px; overflow: auto;
+  }
+  .resultado {
+    display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left;
+    background: transparent; border: 0; border-bottom: 1px solid var(--borde);
+    padding: 10px 12px; cursor: pointer; color: var(--texto); font: inherit;
+  }
+  .resultado:last-child { border-bottom: 0; }
+  .resultado:hover { background: color-mix(in srgb, var(--teal) 8%, var(--tarjeta)); }
+  .r-nombre { font-size: 13px; font-weight: 600; }
+  .r-meta { font-size: 11.5px; color: var(--tenue); }
+  .sin-resultados { margin: 0; padding: 12px; font-size: 12.5px; color: var(--tenue); }
+
+  .seleccionados { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+  .seleccionados.oculto { display: none; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+    background: color-mix(in srgb, var(--teal) 12%, var(--tarjeta));
+    border: 1px solid color-mix(in srgb, var(--teal) 35%, var(--borde));
+    border-radius: 999px; padding: 4px 5px 4px 11px; font-size: 12px;
+  }
+  .chip-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
+  .chip button {
+    background: transparent; border: 0; color: var(--suave); cursor: pointer;
+    font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 50%;
+  }
+  .chip button:hover { color: var(--neg); background: color-mix(in srgb, var(--neg) 12%, transparent); }
+
+  .sub-cab {
+    margin-top: 18px; font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--tenue);
+  }
+  .populares {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 10px; margin-top: 8px;
+  }
+  .popular {
+    text-align: left; background: var(--fondo); border: 1px solid var(--borde);
+    border-radius: 10px; padding: 11px 12px; cursor: pointer; font: inherit;
+    color: var(--texto); transition: border-color .12s, transform .12s;
+  }
+  .popular:hover { border-color: var(--teal); transform: translateY(-1px); }
+  .popular:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .p-indice {
+    display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--teal); font-weight: 700;
+  }
+  .p-nombre { display: block; font-size: 12.5px; font-weight: 600; margin: 4px 0 3px; line-height: 1.35; }
+  .p-meta { display: block; font-size: 11px; color: var(--tenue); }
+  .aviso-seleccion { margin: 8px 0 0; color: var(--neg); font-size: 12.5px; }
+
+  .con-sufijo { position: relative; display: flex; align-items: center; }
+  .con-sufijo input { padding-right: 30px; }
+  .con-sufijo .sufijo { position: absolute; right: 12px; color: var(--tenue); font-size: 13px; pointer-events: none; }
+  .resumen { margin: 0; color: var(--suave); font-size: 12.5px; }
+  .resumen.ancho { grid-column: 1 / -1; }
+
+  .acciones { display: flex; align-items: center; gap: 14px; margin-top: 22px; flex-wrap: wrap; }
   button {
     font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
     border: 1px solid transparent; border-radius: 9px; padding: 10px 18px;
@@ -82,6 +160,7 @@
   .secundario { background: transparent; color: var(--suave); border-color: var(--borde); padding: 6px 10px; font-size: 12.5px; }
   .secundario:hover { color: var(--texto); border-color: var(--teal); }
   .borrar:hover { color: var(--neg); border-color: var(--neg); }
+  .nota-acciones { color: var(--tenue); font-size: 12.5px; }
   .estado {
     margin-top: 16px; padding: 12px 14px; border-radius: 10px;
     border: 1px solid var(--borde); background: var(--fondo); font-size: 13.5px;
@@ -95,6 +174,7 @@
     background: var(--tarjeta); border-radius: 8px; color: var(--suave);
     font-size: 12px;
   }
+
   .seccion { margin-top: 38px; }
   .cab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
   .cab h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
@@ -120,9 +200,11 @@
   footer p { margin: 0 0 6px; }
   @media (max-width: 720px) {
     .contenedor { padding: 26px 14px 50px; }
-    h1 { font-size: 26px; }
+    h1 { font-size: 27px; }
     .rejilla { grid-template-columns: 1fr; }
-    .campo.ancho { grid-column: auto; }
+    .campo.ancho, .resumen.ancho { grid-column: auto; }
+    .populares { grid-template-columns: 1fr; }
+    .chip-texto { max-width: 190px; }
   }
 </style>
 </head>
@@ -130,96 +212,160 @@
 <main class="contenedor">
   <header>
     <div class="kicker">Informe de fondos</div>
-    <h1>Genera un informe desde el navegador</h1>
+    <h1>Informes de fondos indexados y ETFs</h1>
     <p class="entradilla">
-      Elige un ISIN o ticker, el periodo y tus aportaciones. El informe se genera
-      con datos de Yahoo Finance, IPC de España y gráficos interactivos, y queda
-      disponible para abrirlo o descargarlo.
+      Elige un fondo o ETF, el periodo y tus aportaciones. Obtendrás rentabilidad,
+      riesgo, inflación real y una simulación de aportaciones periódicas, con datos
+      de Yahoo Finance e IPC de España.
     </p>
     {% if informes %}
-    <p class="enlace-ultimo"><a href="/ultimo" target="_blank" rel="noopener">Abrir el último informe generado →</a></p>
+    <p class="enlace-ultimo">
+      <a class="boton-enlace" href="/ultimo" target="_blank" rel="noopener">Abrir el último informe →</a>
+    </p>
     {% endif %}
   </header>
 
   <section class="tarjeta">
     <form id="formulario" novalidate>
-      <div class="rejilla">
-        <label class="campo ancho">
-          <span>ISIN o ticker</span>
-          <input id="identificadores" name="identificadores" type="text"
-                 placeholder="IE00B03HCZ61, IE0032620787, IWDA.AS"
-                 autocomplete="off" spellcheck="false">
-          <small>Puedes poner varios separados por espacios o comas.</small>
-        </label>
+      <section class="bloque" id="bloque-fondos">
+        <div class="bloque-cab">
+          <h2>Fondos</h2>
+          <p>Busca por nombre, ISIN o ticker, o elige uno de los populares.</p>
+        </div>
 
-        <label class="campo check">
-          <input id="catalogo" name="catalogo" type="checkbox">
-          <span>Usar el catálogo completo (5 fondos)</span>
-        </label>
+        <div class="zona-seleccion" id="zona-seleccion">
+          <label class="campo ancho">
+            <span>Buscar fondo o ETF</span>
+            <div class="buscador-envoltura">
+              <input id="buscador" type="text"
+                     placeholder="Vanguard, IE00B03HCZ61, IWDA.AS…"
+                     autocomplete="off" spellcheck="false"
+                     aria-describedby="ayuda-buscador">
+              <div id="resultados" class="resultados" role="listbox" hidden></div>
+            </div>
+            <small id="ayuda-buscador">Escribe al menos 2 caracteres. También puedes escribir un ISIN o ticker y pulsar Enter.</small>
+          </label>
 
-        <label class="campo">
-          <span>Periodo</span>
-          <select name="periodo">
-            {% for valor, etiqueta in periodos %}
-            <option value="{{ valor }}"{% if valor == "5a" %} selected{% endif %}>{{ etiqueta }}</option>
+          <div id="seleccionados" class="seleccionados" aria-live="polite"></div>
+          <p id="aviso-seleccion" class="aviso-seleccion" hidden>Selecciona al menos un fondo o marca el catálogo completo.</p>
+
+          <div class="sub-cab">Fondos y ETFs populares</div>
+          {% for grupo in grupos_populares %}
+          {% if grupo.titulo %}<div class="sub-cab sub-cab-grupo">{{ grupo.titulo }}</div>{% endif %}
+          <div class="populares">
+            {% for fondo in grupo.fondos %}
+            <button class="popular" type="button"
+                    data-id="{{ fondo.isin }}"
+                    data-nombre="{{ fondo.nombre }}"
+                    data-meta="{{ fondo.gestora }} · {{ fondo.indice }}">
+              <span class="p-indice">{{ fondo.indice }}</span>
+              <span class="p-nombre">{{ fondo.nombre }}</span>
+              <span class="p-meta">{{ fondo.gestora }} · <code>{{ fondo.isin }}</code></span>
+            </button>
             {% endfor %}
-          </select>
-        </label>
+          </div>
+          {% endfor %}
+        </div>
 
-        <label class="campo">
-          <span>Aportación</span>
-          <input name="aporta" type="number" min="1" max="100000" step="1" value="{{ aporta | round | int }}">
+        <label class="campo check check-catalogo">
+          <input id="catalogo" name="catalogo" type="checkbox">
+          <span>Usar el catálogo clásico completo (5 fondos)</span>
         </label>
+        <input id="identificadores" name="identificadores" type="hidden">
+      </section>
 
-        <label class="campo">
-          <span>Frecuencia de aportación</span>
-          <select name="frecuencia_aportacion">
-            <option value="mensual"{% if frecuencia == "mensual" %} selected{% endif %}>Mensual</option>
-            <option value="semanal"{% if frecuencia == "semanal" %} selected{% endif %}>Semanal</option>
-            <option value="quincenal"{% if frecuencia == "quincenal" %} selected{% endif %}>Quincenal</option>
-          </select>
-        </label>
+      <section class="bloque">
+        <div class="bloque-cab">
+          <h2>Análisis</h2>
+          <p>Periodo, índice de referencia e inflación.</p>
+        </div>
+        <div class="rejilla">
+          <label class="campo">
+            <span>Periodo</span>
+            <select name="periodo">
+              {% for valor, etiqueta in periodos %}
+              <option value="{{ valor }}"{% if valor == "5a" %} selected{% endif %}>{{ etiqueta }}</option>
+              {% endfor %}
+            </select>
+          </label>
 
-        <label class="campo">
-          <span>Tema del informe</span>
-          <select name="tema">
-            <option value="auto"{% if tema == "auto" %} selected{% endif %}>Automático</option>
-            <option value="claro"{% if tema == "claro" %} selected{% endif %}>Claro</option>
-            <option value="oscuro"{% if tema == "oscuro" %} selected{% endif %}>Oscuro</option>
-          </select>
-        </label>
+          <label class="campo">
+            <span>Inflación</span>
+            <select name="inflacion">
+              <option value="espana"{% if inflacion == "espana" %} selected{% endif %}>IPC de España</option>
+              <option value="ninguna"{% if inflacion == "ninguna" %} selected{% endif %}>Sin inflación</option>
+            </select>
+          </label>
 
-        <label class="campo">
-          <span>Inflación</span>
-          <select name="inflacion">
-            <option value="espana"{% if inflacion == "espana" %} selected{% endif %}>IPC de España</option>
-            <option value="ninguna"{% if inflacion == "ninguna" %} selected{% endif %}>Sin inflación</option>
-          </select>
-        </label>
+          <label class="campo">
+            <span>Índice de referencia</span>
+            <input id="benchmark" name="benchmark" type="text"
+                   placeholder="IWDA.AS (por defecto)"
+                   autocomplete="off" spellcheck="false">
+          </label>
 
-        <label class="campo">
-          <span>Índice de referencia</span>
-          <input name="benchmark" type="text" placeholder="IWDA.AS (por defecto)"
-                 autocomplete="off" spellcheck="false">
-        </label>
+          <label class="campo check">
+            <input id="sin_benchmark" name="sin_benchmark" type="checkbox">
+            <span>No comparar con ningún índice</span>
+          </label>
+        </div>
+      </section>
 
-        <label class="campo check">
-          <input id="sin_benchmark" name="sin_benchmark" type="checkbox">
-          <span>No comparar con ningún índice</span>
-        </label>
+      <section class="bloque">
+        <div class="bloque-cab">
+          <h2>Aportaciones</h2>
+          <p>Simula cuánto tendrías invirtiendo periódicamente.</p>
+        </div>
+        <div class="rejilla">
+          <label class="campo">
+            <span>Aportación</span>
+            <div class="con-sufijo">
+              <input id="aporta" name="aporta" type="number" min="1" max="100000" step="1" value="{{ aporta | round | int }}">
+              <span class="sufijo">€</span>
+            </div>
+          </label>
 
-        <label class="campo check">
-          <input id="cdn" name="cdn" type="checkbox" checked>
-          <span>HTML ligero (los gráficos necesitan internet)</span>
-        </label>
-      </div>
+          <label class="campo">
+            <span>Frecuencia</span>
+            <select id="frecuencia_aportacion" name="frecuencia_aportacion">
+              <option value="mensual"{% if frecuencia == "mensual" %} selected{% endif %}>Mensual</option>
+              <option value="semanal"{% if frecuencia == "semanal" %} selected{% endif %}>Semanal</option>
+              <option value="quincenal"{% if frecuencia == "quincenal" %} selected{% endif %}>Quincenal</option>
+            </select>
+          </label>
+
+          <p class="resumen ancho" id="resumen-aportacion"></p>
+        </div>
+      </section>
+
+      <section class="bloque">
+        <div class="bloque-cab">
+          <h2>Apariencia</h2>
+          <p>Formato del informe generado.</p>
+        </div>
+        <div class="rejilla">
+          <label class="campo">
+            <span>Tema del informe</span>
+            <select name="tema">
+              <option value="auto"{% if tema == "auto" %} selected{% endif %}>Automático</option>
+              <option value="claro"{% if tema == "claro" %} selected{% endif %}>Claro</option>
+              <option value="oscuro"{% if tema == "oscuro" %} selected{% endif %}>Oscuro</option>
+            </select>
+          </label>
+
+          <label class="campo check">
+            <input id="cdn" name="cdn" type="checkbox" checked>
+            <span>HTML ligero (los gráficos usan CDN)</span>
+          </label>
+        </div>
+      </section>
 
       <div class="acciones">
         <button id="boton" class="principal" type="submit">Generar informe</button>
-        <span style="color: var(--tenue); font-size: 12.5px;">El HTML se guarda en la carpeta <code>salida/</code>.</span>
+        <span class="nota-acciones">El HTML se guarda en la carpeta <code>salida/</code>.</span>
       </div>
 
-      <div id="estado" class="estado" hidden></div>
+      <div id="estado" class="estado" aria-live="polite" hidden></div>
     </form>
   </section>
 
@@ -259,7 +405,7 @@
       </table>
     </div>
     {% else %}
-    <p class="vacio">Todavía no hay informes. Genera el primero con el formulario de arriba.</p>
+    <p class="vacio">Todavía no hay informes. Busca un fondo arriba y genera el primero.</p>
     {% endif %}
   </section>
 
@@ -280,16 +426,182 @@
   var formulario = document.getElementById('formulario');
   var boton = document.getElementById('boton');
   var estado = document.getElementById('estado');
+  var buscador = document.getElementById('buscador');
+  var resultados = document.getElementById('resultados');
+  var seleccionados = document.getElementById('seleccionados');
   var identificadores = document.getElementById('identificadores');
+  var aviso = document.getElementById('aviso-seleccion');
   var catalogo = document.getElementById('catalogo');
+  var zonaSeleccion = document.getElementById('zona-seleccion');
   var sinBenchmark = document.getElementById('sin_benchmark');
+  var benchmark = document.getElementById('benchmark');
+  var aporta = document.getElementById('aporta');
+  var frecuencia = document.getElementById('frecuencia_aportacion');
+  var resumen = document.getElementById('resumen-aportacion');
+  var listaSeleccionados = [];
+  var temporizadorBusqueda = null;
+
+  var RE_IDENTIFICADOR = /^[A-Za-z0-9.^=-]{2,24}$/;
 
   function sincronizarCatalogo() {
-    identificadores.disabled = catalogo.checked;
-    if (catalogo.checked) identificadores.value = '';
+    var activo = catalogo.checked;
+    zonaSeleccion.classList.toggle('off', activo);
+    buscador.disabled = activo;
+    document.querySelectorAll('.popular').forEach(function (elemento) {
+      elemento.disabled = activo;
+    });
+    seleccionados.classList.toggle('oculto', activo);
+    if (activo) {
+      ocultarResultados();
+      aviso.hidden = true;
+    }
   }
+
+  function sincronizarBenchmark() {
+    benchmark.disabled = sinBenchmark.checked;
+    if (sinBenchmark.checked) benchmark.value = '';
+  }
+
+  function actualizarResumen() {
+    var valor = Number(aporta.value) || 0;
+    var texto = frecuencia.options[frecuencia.selectedIndex].text.toLowerCase();
+    var unidad = texto === 'semanal' ? 'semana' : (texto === 'quincenal' ? 'quincena' : 'mes');
+    resumen.textContent = valor.toLocaleString('es-ES') + ' € / ' + unidad;
+  }
+
+  function pintarSeleccion() {
+    seleccionados.innerHTML = '';
+    listaSeleccionados.forEach(function (fondo, indice) {
+      var chip = document.createElement('span');
+      chip.className = 'chip';
+      var texto = document.createElement('span');
+      texto.className = 'chip-texto';
+      texto.textContent = fondo.nombre;
+      texto.title = fondo.nombre;
+      var quitar = document.createElement('button');
+      quitar.type = 'button';
+      quitar.textContent = '×';
+      quitar.setAttribute('aria-label', 'Quitar ' + fondo.nombre);
+      quitar.addEventListener('click', function () {
+        listaSeleccionados.splice(indice, 1);
+        pintarSeleccion();
+      });
+      chip.appendChild(texto);
+      chip.appendChild(quitar);
+      seleccionados.appendChild(chip);
+    });
+    identificadores.value = listaSeleccionados.map(function (fondo) {
+      return fondo.id;
+    }).join(',');
+  }
+
+  function anadir(id, nombre, meta) {
+    id = (id || '').trim().toUpperCase();
+    if (!id) return;
+    if (!RE_IDENTIFICADOR.test(id)) {
+      aviso.textContent = 'Identificador no válido: usa un ISIN o un ticker.';
+      aviso.hidden = false;
+      return;
+    }
+    if (listaSeleccionados.some(function (fondo) { return fondo.id === id; })) {
+      return;
+    }
+    listaSeleccionados.push({ id: id, nombre: nombre || id, meta: meta || '' });
+    pintarSeleccion();
+    aviso.hidden = true;
+  }
+
+  function ocultarResultados() {
+    resultados.hidden = true;
+    resultados.innerHTML = '';
+  }
+
+  function pintarResultados(lista, mensaje) {
+    resultados.innerHTML = '';
+    if (!lista.length) {
+      if (mensaje) {
+        var avisoVacio = document.createElement('p');
+        avisoVacio.className = 'sin-resultados';
+        avisoVacio.textContent = mensaje;
+        resultados.appendChild(avisoVacio);
+        resultados.hidden = false;
+      } else {
+        ocultarResultados();
+      }
+      return;
+    }
+    lista.forEach(function (item) {
+      var opcion = document.createElement('button');
+      opcion.type = 'button';
+      opcion.className = 'resultado';
+      var nombre = document.createElement('span');
+      nombre.className = 'r-nombre';
+      nombre.textContent = item.nombre || item.simbolo;
+      var meta = document.createElement('span');
+      meta.className = 'r-meta';
+      meta.textContent = [item.simbolo, item.mercado, item.tipo]
+        .filter(Boolean).join(' · ');
+      opcion.appendChild(nombre);
+      opcion.appendChild(meta);
+      opcion.addEventListener('click', function () {
+        anadir(item.isin || item.simbolo, item.nombre, meta.textContent);
+        buscador.value = '';
+        ocultarResultados();
+      });
+      resultados.appendChild(opcion);
+    });
+    resultados.hidden = false;
+  }
+
+  async function buscar(consulta) {
+    try {
+      var respuesta = await fetch('/api/buscar?q=' + encodeURIComponent(consulta));
+      var cuerpo = await respuesta.json();
+      pintarResultados(cuerpo.resultados || [], cuerpo.mensaje || '');
+    } catch (error) {
+      pintarResultados([], 'No se ha podido buscar ahora mismo. Escribe el ISIN o ticker y pulsa Enter.');
+    }
+  }
+
+  buscador.addEventListener('input', function () {
+    clearTimeout(temporizadorBusqueda);
+    var consulta = buscador.value.trim();
+    if (consulta.length < 2) {
+      ocultarResultados();
+      return;
+    }
+    temporizadorBusqueda = setTimeout(function () {
+      buscar(consulta);
+    }, 300);
+  });
+
+  buscador.addEventListener('keydown', function (evento) {
+    if (evento.key !== 'Enter') return;
+    evento.preventDefault();
+    var consulta = buscador.value.trim();
+    if (consulta) {
+      anadir(consulta);
+      buscador.value = '';
+      ocultarResultados();
+    }
+  });
+
+  document.addEventListener('click', function (evento) {
+    if (evento.target !== buscador && !resultados.contains(evento.target)) {
+      ocultarResultados();
+    }
+  });
+
+  document.querySelectorAll('.popular').forEach(function (elemento) {
+    elemento.addEventListener('click', function () {
+      anadir(elemento.dataset.id, elemento.dataset.nombre, elemento.dataset.meta || '');
+    });
+  });
+
   catalogo.addEventListener('change', sincronizarCatalogo);
-  sincronizarCatalogo();
+  sinBenchmark.addEventListener('change', sincronizarBenchmark);
+  aporta.addEventListener('input', actualizarResumen);
+  frecuencia.addEventListener('change', actualizarResumen);
 
   function mostrar(tipo, mensaje, log) {
     estado.hidden = false;
@@ -304,8 +616,24 @@
 
   formulario.addEventListener('submit', async function (evento) {
     evento.preventDefault();
+
+    if (!catalogo.checked) {
+      var pendiente = buscador.value.trim();
+      if (pendiente) {
+        anadir(pendiente);
+        buscador.value = '';
+        ocultarResultados();
+      }
+      if (!listaSeleccionados.length) {
+        aviso.textContent = 'Selecciona al menos un fondo o marca el catálogo completo.';
+        aviso.hidden = false;
+        buscador.focus();
+        return;
+      }
+    }
+
     var datos = {
-      identificadores: identificadores.value.trim(),
+      identificadores: identificadores.value,
       catalogo: catalogo.checked,
       periodo: formulario.periodo.value,
       aporta: Number(formulario.aporta.value),
@@ -376,6 +704,10 @@
       }
     });
   });
+
+  sincronizarCatalogo();
+  sincronizarBenchmark();
+  actualizarResumen();
 })();
 </script>
 </body>

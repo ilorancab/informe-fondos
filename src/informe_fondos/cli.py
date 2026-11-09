@@ -30,7 +30,10 @@ from .datos import fuentes, inflacion
 from .presentacion import informe
 from .presentacion.formato import numero, porcentaje
 
-PERIODOS_VALIDOS = ["1m", "3m", "6m", "ytd", "1a", "2a", "3a", "5a", "7a", "10a", "max"]
+PERIODOS_VALIDOS = [
+    "1d", "1w", "5d", "1m", "3m", "6m", "ytd", "1a", "2a", "3a", "5a", "7a",
+    "10a", "max",
+]
 
 
 # --------------------------------------------------------------------------

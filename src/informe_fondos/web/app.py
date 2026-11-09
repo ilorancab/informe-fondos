@@ -13,6 +13,7 @@ import secrets
 import subprocess
 import sys
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -25,12 +26,14 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
+from ..catalogo import CATALOGO, POPULARES
 from ..config import (
     APORTACION_POR_DEFECTO,
     FRECUENCIA_APORTACION_POR_DEFECTO,
     SALIDA,
     valor_env,
 )
+from ..datos.fuentes import ErrorFuente, buscar_candidatos
 
 HOME = SALIDA.parent
 WEB = Path(__file__).resolve().parent
@@ -39,6 +42,9 @@ SALIDA.mkdir(parents=True, exist_ok=True)
 templates = Jinja2Templates(directory=WEB / "templates")
 
 PERIODOS = [
+    ("1d", "1 día"),
+    ("1w", "1 semana"),
+    ("5d", "5 días"),
     ("1m", "1 mes"),
     ("3m", "3 meses"),
     ("6m", "6 meses"),
@@ -51,6 +57,15 @@ PERIODOS = [
     ("10a", "10 años"),
     ("max", "Todo el histórico"),
 ]
+
+
+def _grupos_populares() -> list[dict]:
+    """Separa las sugerencias de la portada en fondos y ETFs."""
+    return [
+        {"titulo": "Fondos indexados", "fondos": CATALOGO},
+        {"titulo": "ETFs", "fondos": POPULARES[len(CATALOGO):]},
+    ]
+
 
 # Valores iniciales del formulario, tomados de .env o de los valores por defecto.
 APORTA_INICIAL = float(
@@ -82,6 +97,12 @@ _RE_HTML = re.compile(r"^[A-Za-z0-9._-]+\.html$")
 _seguridad = HTTPBasic(auto_error=False)
 _candado = threading.Lock()
 
+# Caché en memoria de búsquedas para no golpear Yahoo con cada pulsación.
+_BUSQUEDA_TTL = 600
+_BUSQUEDA_MAX = 200
+_cache_busqueda: dict[str, tuple[float, dict]] = {}
+_cache_busqueda_lock = threading.Lock()
+
 
 def verificar_auth(
     credenciales: HTTPBasicCredentials | None = Depends(_seguridad),
@@ -104,7 +125,8 @@ class Peticion(BaseModel):
     identificadores: str = ""
     catalogo: bool = False
     periodo: Literal[
-        "1m", "3m", "6m", "ytd", "1a", "2a", "3a", "5a", "7a", "10a", "max"
+        "1d", "1w", "5d", "1m", "3m", "6m", "ytd", "1a", "2a", "3a", "5a",
+        "7a", "10a", "max",
     ] = "5a"
     aporta: float = Field(default=APORTA_INICIAL, gt=0, le=100000)
     frecuencia_aportacion: Literal["mensual", "semanal", "quincenal"] = (
@@ -195,12 +217,47 @@ def inicio(request: Request, _: None = Depends(verificar_auth)):
         context={
             "informes": _listar_informes(),
             "periodos": PERIODOS,
+            "grupos_populares": _grupos_populares(),
             "aporta": APORTA_INICIAL,
             "frecuencia": FRECUENCIA_INICIAL,
             "tema": TEMA_INICIAL,
             "inflacion": INFLACION_INICIAL,
         },
     )
+
+
+@app.get("/api/buscar")
+def api_buscar(q: str = "", _: None = Depends(verificar_auth)):
+    consulta = q.strip()
+    if len(consulta) < 2:
+        return {"resultados": [], "mensaje": "Escribe al menos 2 caracteres."}
+
+    clave = consulta.casefold()
+    ahora = time.monotonic()
+    with _cache_busqueda_lock:
+        guardado = _cache_busqueda.get(clave)
+        if guardado and ahora - guardado[0] < _BUSQUEDA_TTL:
+            return guardado[1]
+
+    try:
+        resultados = buscar_candidatos(consulta)
+        mensaje = (
+            ""
+            if resultados
+            else "Sin resultados. Prueba con otro nombre, ISIN o ticker."
+        )
+    except ErrorFuente as error:
+        resultados = []
+        mensaje = str(error)
+
+    respuesta = {"resultados": resultados, "mensaje": mensaje}
+    with _cache_busqueda_lock:
+        if len(_cache_busqueda) >= _BUSQUEDA_MAX:
+            # Se descarta la entrada más antigua para acotar la memoria.
+            mas_antigua = min(_cache_busqueda, key=lambda k: _cache_busqueda[k][0])
+            _cache_busqueda.pop(mas_antigua, None)
+        _cache_busqueda[clave] = (ahora, respuesta)
+    return respuesta
 
 
 @app.get("/api/informes")

@@ -12,6 +12,7 @@ from ..datos import inflacion
 PERIODOS = [
     ("1 día", "1d"),
     ("1 semana", "1w"),
+    ("5 días", "5d"),
     ("1 mes", "1m"),
     ("3 meses", "3m"),
     ("6 meses", "6m"),

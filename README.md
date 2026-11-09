@@ -80,8 +80,8 @@ uv run informe-fondos IE00B03HCZ61 --periodo 3a --aporta 300
 uv run informe-fondos IE00B03HCZ61 --aporta 50 --frecuencia-aportacion semanal
 ```
 
-`--periodo` acepta `1m`, `3m`, `6m`, `ytd`, `1a`, `2a`, `3a`, `5a`, `7a`,
-`10a` y `max`. Por defecto: `5a`.
+`--periodo` acepta `1d`, `1w`, `5d`, `1m`, `3m`, `6m`, `ytd`, `1a`, `2a`,
+`3a`, `5a`, `7a`, `10a` y `max`. Por defecto: `5a`.
 
 `--aporta` fija el importe y `--frecuencia-aportacion` el ritmo: `mensual`
 (por defecto), `semanal` o `quincenal`.
