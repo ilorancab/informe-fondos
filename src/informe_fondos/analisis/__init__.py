@@ -14,9 +14,11 @@ from .metricas import (
     serie_caidas,
     tabla_rentabilidades,
 )
+from .posiciones import analizar_posiciones
 
 __all__ = [
     "PERIODOS",
+    "analizar_posiciones",
     "comparar",
     "dias_entre_datos",
     "matriz_mensual",

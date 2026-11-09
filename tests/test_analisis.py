@@ -72,3 +72,42 @@ def test_rentabilidad_real():
     assert inflacion.real(0.10, 0.04) == pytest.approx(1.10 / 1.04 - 1)
     assert inflacion.real(None, 0.04) is None
     assert inflacion.real(0.10, None) is None
+
+
+def test_posiciones_ordena_mejor_y_peor(monkeypatch):
+    from informe_fondos.analisis import posiciones as modulo
+
+    composicion = [
+        {"simbolo": "AAA", "nombre": "Mejor", "peso": 0.10},
+        {"simbolo": "BBB", "nombre": "Bien", "peso": 0.09},
+        {"simbolo": "CCC", "nombre": "Plano", "peso": 0.08},
+        {"simbolo": "DDD", "nombre": "Mal", "peso": 0.07},
+        {"simbolo": "EEE", "nombre": "Peor", "peso": 0.06},
+    ]
+    series = {
+        "AAA": _serie([100, 150]),
+        "BBB": _serie([100, 120]),
+        "CCC": _serie([100, 100]),
+        "DDD": _serie([100, 90]),
+        "EEE": _serie([100, 70]),
+    }
+
+    monkeypatch.setattr(
+        modulo.fuentes, "obtener_composicion", lambda simbolo: composicion
+    )
+    monkeypatch.setattr(
+        modulo.fuentes,
+        "descargar_ventana",
+        lambda simbolo, desde, hasta: series[simbolo],
+    )
+
+    datos = modulo.analizar_posiciones(
+        "FONDO", pd.Timestamp("2020-01-01"), pd.Timestamp("2020-01-02")
+    )
+
+    assert datos is not None
+    assert datos["mejor"]["simbolo"] == "AAA"
+    assert datos["peor"]["simbolo"] == "EEE"
+    assert [fila["simbolo"] for fila in datos["filas"]] == [
+        "AAA", "BBB", "CCC", "DDD", "EEE",
+    ]

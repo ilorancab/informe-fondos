@@ -86,6 +86,19 @@ uv run informe-fondos IE00B03HCZ61 --aporta 50 --frecuencia-aportacion semanal
 `--aporta` fija el importe y `--frecuencia-aportacion` el ritmo: `mensual`
 (por defecto), `semanal` o `quincenal`.
 
+### Analizar las mayores posiciones
+
+```bash
+uv run informe-fondos IE00B4L5Y983 --posiciones
+```
+
+Añade un gráfico con las 10 mayores posiciones del fondo o ETF, ordenadas de
+mejor a peor rentabilidad en el periodo. Yahoo Finance solo publica el top 10,
+y no en todos los instrumentos (los fondos de bonos suelen no tener datos). La
+rentabilidad de cada empresa se calcula en su divisa de cotización y no
+representa la cartera completa del fondo. Es una opción lenta: añade una
+petición por cada posición.
+
 ### Añadir la inflación
 
 El IPC de España se incluye por defecto. Para desactivarlo:
@@ -169,9 +182,9 @@ docker compose up --build -d
 ```
 
 Abre <http://localhost:8000>. Desde ahí puedes elegir ISIN, periodo, aportación,
-frecuencia, tema e inflación, generar el informe y abrirlo, descargarlo o
-borrarlo. La ruta `/ultimo` redirige siempre al informe más reciente, útil para
-marcadores.
+frecuencia, tema, inflación y análisis de posiciones, generar el informe y
+abrirlo, descargarlo o borrarlo. La ruta `/ultimo` redirige siempre al informe
+más reciente, útil para marcadores.
 
 - Los informes se guardan en `salida/` y la caché en `datos/`; ambos directorios
   están montados como volúmenes, así que sobreviven a reinicios y los ves desde

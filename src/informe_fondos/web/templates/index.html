@@ -308,6 +308,11 @@
             <input id="sin_benchmark" name="sin_benchmark" type="checkbox">
             <span>No comparar con ningún índice</span>
           </label>
+
+          <label class="campo check ancho">
+            <input id="posiciones" name="posiciones" type="checkbox">
+            <span>Analizar las 10 mayores posiciones y su rentabilidad (más lento)</span>
+          </label>
         </div>
       </section>
 
@@ -435,6 +440,7 @@
   var zonaSeleccion = document.getElementById('zona-seleccion');
   var sinBenchmark = document.getElementById('sin_benchmark');
   var benchmark = document.getElementById('benchmark');
+  var posiciones = document.getElementById('posiciones');
   var aporta = document.getElementById('aporta');
   var frecuencia = document.getElementById('frecuencia_aportacion');
   var resumen = document.getElementById('resumen-aportacion');
@@ -642,6 +648,7 @@
       inflacion: formulario.inflacion.value,
       benchmark: formulario.benchmark.value.trim(),
       sin_benchmark: sinBenchmark.checked,
+      posiciones: posiciones.checked,
       cdn: document.getElementById('cdn').checked
     };
 

@@ -315,6 +315,25 @@
       {{ f.graficos.evolucion | safe }}
     </div>
 
+    {% if f.graficos.posiciones %}
+    <div class="tarjeta">
+      <div class="tarjeta-cab">
+        <h3>Mayores posiciones: mejor y peor comportamiento</h3>
+        <span>{{ f.posiciones.desde | fecha }} — {{ f.posiciones.hasta | fecha }} · en su divisa</span>
+      </div>
+      {{ f.graficos.posiciones | safe }}
+      <p class="nota">
+        Mejor: <strong>{{ f.posiciones.mejor.nombre }}</strong>
+        ({{ f.posiciones.mejor.rentabilidad | porcentaje }}).
+        Peor: <strong>{{ f.posiciones.peor.nombre }}</strong>
+        ({{ f.posiciones.peor.rentabilidad | porcentaje }}).
+        Son las {{ f.posiciones.total }} posiciones con datos entre las mayores
+        que publica Yahoo Finance, no la cartera completa; la rentabilidad puede
+        estar en una divisa distinta a la del fondo.
+      </p>
+    </div>
+    {% endif %}
+
     <div class="{% if f.graficos.comparativa %}rejilla-2{% else %}rejilla-1{% endif %}">
       <div class="tarjeta">
         <div class="tarjeta-cab">

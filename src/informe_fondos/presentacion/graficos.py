@@ -207,6 +207,73 @@ def rentabilidades_anuales(filas: list[dict]) -> str:
     return _html(figura)
 
 
+def _recortar(texto: str, maximo: int = 28) -> str:
+    texto = (texto or "").strip()
+    return texto if len(texto) <= maximo else texto[: maximo - 1].rstrip() + "…"
+
+
+def mayores_posiciones(datos: dict) -> str:
+    """Barras horizontales con las mayores posiciones, de mejor a peor."""
+    filas = sorted(datos["filas"], key=lambda fila: fila["rentabilidad"])
+    etiquetas = [
+        f"{_recortar(fila['nombre'], 26)} · {fila['peso']:.1%}"
+        for fila in filas
+    ]
+    valores = [fila["rentabilidad"] * 100 for fila in filas]
+    colores = [
+        COLORES["positivo"] if valor >= 0 else COLORES["negativo"]
+        for valor in valores
+    ]
+    textos = [porcentaje(fila["rentabilidad"]) for fila in filas]
+
+    figura = go.Figure(
+        go.Bar(
+            x=valores,
+            y=etiquetas,
+            orientation="h",
+            marker_color=colores,
+            marker_line_width=0,
+            text=textos,
+            textposition="outside",
+            cliponaxis=False,
+            textfont=dict(size=11, color="#475569"),
+            customdata=[
+                [f"{fila['peso']:.1%}", fila["simbolo"]] for fila in filas
+            ],
+            hovertemplate=(
+                "%{y}<br><b>%{text}</b> · peso %{customdata[0]}"
+                "<extra></extra>"
+            ),
+        )
+    )
+
+    alto = max(260, 80 + 34 * len(filas))
+    figura.update_layout(**_base(alto, superior=26))
+    figura.update_layout(
+        bargap=0.28,
+        margin=dict(l=200, r=66, t=26, b=36),
+    )
+
+    minimo = min(valores)
+    maximo = max(valores)
+    if maximo == minimo:
+        maximo = minimo + 1
+    figura.update_xaxes(
+        ticksuffix=" %",
+        tickformat=".0f",
+        zeroline=True,
+        zerolinecolor="#cbd5e1",
+        showgrid=True,
+        gridcolor="#eef2f7",
+        range=[min(0.0, minimo) * 1.18, max(0.0, maximo) * 1.18],
+    )
+    figura.update_yaxes(
+        showgrid=False,
+        tickfont=dict(size=11, color="#334155"),
+    )
+    return _html(figura)
+
+
 def matriz_mensual(datos: dict) -> str:
     """Mapa de calor con la rentabilidad de cada mes."""
     meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",

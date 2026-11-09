@@ -143,6 +143,15 @@ def _argumentos(argv=None) -> argparse.Namespace:
         help="Periodo de los gráficos y del simulador (por defecto: 5a).",
     )
     parser.add_argument(
+        "--posiciones",
+        action="store_true",
+        help=(
+            "Analiza las 10 mayores posiciones del fondo y su rentabilidad. "
+            "Añade varias peticiones a Yahoo y no está disponible en todos "
+            "los fondos."
+        ),
+    )
+    parser.add_argument(
         "--benchmark",
         default=None,
         help=(
@@ -366,6 +375,7 @@ def main(argv=None) -> int:
             frecuencia_aportacion=args.frecuencia_aportacion,
             tasa_libre_riesgo=args.tasa_libre_riesgo,
             ipc=ipc,
+            posiciones=args.posiciones,
         )
         for instrumento, serie in fichas_base
     ]

@@ -59,9 +59,17 @@ def construir_ficha(
     frecuencia_aportacion: str = "mensual",
     tasa_libre_riesgo: float = 2.0,
     ipc: pd.Series | None = None,
+    posiciones: bool = False,
 ) -> dict:
     """Reúne métricas, tablas y gráficos de un fondo."""
     serie_periodo = analisis.recortar(serie, periodo)
+    posiciones_datos = None
+    if posiciones and len(serie_periodo) >= 2:
+        posiciones_datos = analisis.analizar_posiciones(
+            instrumento.simbolo,
+            serie_periodo.index[0],
+            serie_periodo.index[-1],
+        )
     metricas = analisis.metricas(serie, tasa_libre_riesgo)
     max_caida = float(metricas.get("max_caida") or 0.0)
     fecha_max_caida = metricas.get("fecha_max_caida")
@@ -195,6 +203,7 @@ def construir_ficha(
         "inflacion": inflacion_resumen,
         "comparacion": comparacion,
         "benchmark_nombre": benchmark_nombre,
+        "posiciones": posiciones_datos,
         "graficos": {
             "evolucion": graficos.evolucion(serie_periodo, instrumento.divisa),
             "caidas": graficos.caidas(serie),
@@ -205,6 +214,11 @@ def construir_ficha(
             "comparativa": (
                 graficos.comparativa(comparacion, benchmark_nombre)
                 if comparacion
+                else None
+            ),
+            "posiciones": (
+                graficos.mayores_posiciones(posiciones_datos)
+                if posiciones_datos
                 else None
             ),
         },

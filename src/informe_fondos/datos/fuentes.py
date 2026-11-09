@@ -12,8 +12,10 @@ los errores técnicos a mensajes entendibles.
 
 from __future__ import annotations
 
+import http.cookiejar
 import json
 import re
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -23,10 +25,20 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from ..config import DATOS, HORAS_CACHE, SERIES, USER_AGENT, VERSION_CACHE
+from ..config import (
+    DATOS,
+    HORAS_CACHE,
+    HORAS_CACHE_COMPOSICION,
+    SERIES,
+    USER_AGENT,
+    VERSION_CACHE,
+)
 
 _BUSQUEDA = "https://query2.finance.yahoo.com/v1/finance/search"
 _GRAFICO = "https://query1.finance.yahoo.com/v8/finance/chart/{simbolo}"
+_CRUMB = "https://query1.finance.yahoo.com/v1/test/getcrumb"
+_QUOTE_SUMMARY = "https://query1.finance.yahoo.com/v10/finance/quoteSummary/{simbolo}"
+_COOKIE_YAHOO = "https://fc.yahoo.com/"
 
 _RE_ISIN = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 
@@ -162,6 +174,162 @@ def _fresco(ruta, horas=HORAS_CACHE) -> bool:
 
 def _archivo_cache(simbolo: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", simbolo)
+
+
+# --------------------------------------------------------------------------
+# Sesión de Yahoo para el endpoint de composición (cookie + crumb)
+# --------------------------------------------------------------------------
+
+_sesion_lock = threading.Lock()
+_sesion_yahoo: tuple[urllib.request.OpenerDirector, str, float] | None = None
+
+
+def _invalidar_sesion_yahoo() -> None:
+    global _sesion_yahoo
+    with _sesion_lock:
+        _sesion_yahoo = None
+
+
+def _obtener_sesion_yahoo() -> tuple[urllib.request.OpenerDirector, str]:
+    """Devuelve un opener con cookie y un crumb, reutilizables durante 1 hora."""
+    global _sesion_yahoo
+    with _sesion_lock:
+        if _sesion_yahoo and time.time() - _sesion_yahoo[2] < 3600:
+            return _sesion_yahoo[0], _sesion_yahoo[1]
+
+        jar = http.cookiejar.CookieJar()
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(jar)
+        )
+
+        peticion = urllib.request.Request(
+            _COOKIE_YAHOO, headers={"User-Agent": USER_AGENT}
+        )
+        try:
+            opener.open(peticion, timeout=10).close()
+        except urllib.error.HTTPError as error:
+            # fc.yahoo.com devuelve 404, pero deja la cookie A3 necesaria.
+            error.close()
+        except (urllib.error.URLError, TimeoutError) as error:
+            raise ErrorFuente(
+                "No se ha podido iniciar sesión con Yahoo Finance."
+            ) from error
+
+        peticion = urllib.request.Request(
+            _CRUMB,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "application/json,text/plain,*/*",
+            },
+        )
+        try:
+            with opener.open(peticion, timeout=10) as respuesta:
+                crumb = respuesta.read().decode("utf-8").strip()
+        except (urllib.error.URLError, TimeoutError) as error:
+            raise ErrorFuente(
+                "No se ha podido obtener el token de Yahoo Finance."
+            ) from error
+
+        if not crumb or crumb.startswith("{"):
+            raise ErrorFuente("Yahoo Finance no ha devuelto un token válido.")
+
+        _sesion_yahoo = (opener, crumb, time.time())
+        return opener, crumb
+
+
+def _get_json_composicion(url: str, timeout: int = 15) -> dict:
+    """GET al endpoint quoteSummary, añadiendo el crumb y renovándolo si caduca."""
+    for intento in range(2):
+        opener, crumb = _obtener_sesion_yahoo()
+        separador = "&" if "?" in url else "?"
+        direccion = f"{url}{separador}crumb={urllib.parse.quote(crumb, safe='')}"
+        peticion = urllib.request.Request(
+            direccion,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "application/json,text/plain,*/*",
+            },
+        )
+        try:
+            with opener.open(peticion, timeout=timeout) as respuesta:
+                return json.loads(respuesta.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            if error.code == 401 and intento == 0:
+                error.close()
+                _invalidar_sesion_yahoo()
+                continue
+            if error.code == 404:
+                error.close()
+                return {}
+            raise ErrorFuente(
+                f"Yahoo Finance respondió con un error HTTP {error.code}."
+            ) from error
+        except (urllib.error.URLError, TimeoutError) as error:
+            raise ErrorFuente(
+                "No se ha podido conectar con Yahoo Finance."
+            ) from error
+        except json.JSONDecodeError as error:
+            raise ErrorFuente(
+                "Yahoo Finance devolvió una respuesta ilegible."
+            ) from error
+    return {}
+
+
+def obtener_composicion(simbolo: str, sin_cache: bool = False) -> list[dict]:
+    """Devuelve las 10 mayores posiciones de un fondo o ETF.
+
+    Solo funciona con los instrumentos para los que Yahoo publica composición
+    (normalmente fondos y ETFs de renta variable). Si no hay datos, devuelve
+    una lista vacía en vez de fallar: el gráfico es opcional.
+    """
+    simbolo = simbolo.strip()
+    if not simbolo:
+        return []
+
+    ruta = DATOS / "composicion" / f"{_archivo_cache(simbolo)}.json"
+    if not sin_cache and _fresco(ruta, horas=HORAS_CACHE_COMPOSICION):
+        guardado = _leer_json(ruta)
+        if guardado and guardado.get("version") == 1:
+            return guardado.get("posiciones") or []
+
+    url = _QUOTE_SUMMARY.format(simbolo=urllib.parse.quote(simbolo, safe=""))
+    try:
+        datos = _get_json_composicion(f"{url}?modules=topHoldings")
+    except ErrorFuente:
+        return []
+
+    resultado = ((datos.get("quoteSummary") or {}).get("result") or [{}])[0]
+    holdings = (resultado.get("topHoldings") or {}).get("holdings") or []
+
+    posiciones = []
+    for holding in holdings:
+        ticker = (holding.get("symbol") or "").strip()
+        peso = (holding.get("holdingPercent") or {}).get("raw")
+        if not ticker or not isinstance(peso, (int, float)) or peso <= 0:
+            continue
+        posiciones.append(
+            {
+                "simbolo": ticker,
+                "nombre": holding.get("holdingName") or ticker,
+                "peso": float(peso),
+            }
+        )
+        if len(posiciones) >= 10:
+            break
+
+    if posiciones:
+        _escribir_json(
+            ruta,
+            {
+                "version": 1,
+                "simbolo": simbolo,
+                "descargado": datetime.now(timezone.utc).isoformat(
+                    timespec="seconds"
+                ),
+                "posiciones": posiciones,
+            },
+        )
+    return posiciones
 
 
 # --------------------------------------------------------------------------
@@ -428,3 +596,79 @@ def descargar(simbolo: str, sin_cache: bool = False) -> tuple[pd.Series, dict]:
         },
     )
     return serie, meta
+
+
+def descargar_ventana(
+    simbolo: str,
+    desde,
+    hasta,
+    sin_cache: bool = False,
+) -> pd.Series:
+    """Descarga una ventana concreta de precios diarios.
+
+    Se usa para calcular la rentabilidad de las posiciones de un fondo sin
+    bajar todo su histórico. La ventana se recorta a ``desde``/``hasta``.
+    """
+    inicio = pd.Timestamp(desde)
+    fin = pd.Timestamp(hasta)
+    if inicio.tzinfo is not None:
+        inicio = inicio.tz_localize(None)
+    if fin.tzinfo is not None:
+        fin = fin.tz_localize(None)
+    inicio = inicio.normalize()
+    fin = fin.normalize()
+
+    clave = (
+        f"{_archivo_cache(simbolo)}-{inicio:%Y%m%d}-{fin:%Y%m%d}"
+    )
+    ruta = DATOS / "posiciones" / f"{clave}.json"
+
+    if not sin_cache and _fresco(ruta):
+        guardado = _leer_json(ruta)
+        if guardado and guardado.get("version") == 1:
+            try:
+                return pd.Series(
+                    guardado["valores"],
+                    index=pd.to_datetime(guardado["fechas"]),
+                    dtype="float64",
+                    name=simbolo,
+                )
+            except (KeyError, ValueError):
+                pass
+
+    parametros = urllib.parse.urlencode(
+        {
+            "period1": int(inicio.timestamp()),
+            "period2": int((fin + pd.Timedelta(days=2)).timestamp()),
+            "interval": "1d",
+            "includeAdjustedClose": "true",
+        }
+    )
+    url = _GRAFICO.format(simbolo=urllib.parse.quote(simbolo, safe="")) + "?" + parametros
+    datos = _get_json(url, timeout=15, intentos=2)
+
+    resultados = (datos.get("chart") or {}).get("result") or []
+    if not resultados:
+        error = (datos.get("chart") or {}).get("error") or {}
+        descripcion = error.get("description") or "sin datos"
+        raise ErrorFuente(
+            f"Yahoo Finance no devuelve histórico para {simbolo}: {descripcion}"
+        )
+
+    serie, _ = _parsear_serie(resultados[0])
+    serie = serie[(serie.index >= inicio) & (serie.index <= fin)]
+    if serie.empty:
+        raise ErrorFuente(f"Sin datos de {simbolo} en el periodo solicitado.")
+
+    _escribir_json(
+        ruta,
+        {
+            "version": 1,
+            "simbolo": simbolo,
+            "desde": inicio.strftime("%Y-%m-%d"),
+            "hasta": fin.strftime("%Y-%m-%d"),
+            "fechas": [fecha.strftime("%Y-%m-%d") for fecha in serie.index],
+            "valores": [round(float(valor), 6) for valor in serie.to_numpy()],
+        },
+    )
+    return serie

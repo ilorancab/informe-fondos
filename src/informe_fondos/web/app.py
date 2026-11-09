@@ -136,6 +136,7 @@ class Peticion(BaseModel):
     inflacion: Literal["espana", "ninguna"] = INFLACION_INICIAL
     benchmark: str = ""
     sin_benchmark: bool = False
+    posiciones: bool = False
     cdn: bool = True
 
 
@@ -323,6 +324,8 @@ def generar(peticion: Peticion, _: None = Depends(verificar_auth)):
         )
         if peticion.cdn:
             comando.append("--cdn")
+        if peticion.posiciones:
+            comando.append("--posiciones")
         if peticion.sin_benchmark:
             comando.append("--sin-benchmark")
         elif benchmark:

@@ -34,6 +34,9 @@ USER_AGENT = (
 # Horas que se reutiliza una descarga antes de volver a pedirla.
 HORAS_CACHE = 6
 
+# La composición de un fondo cambia poco; se puede reutilizar un día entero.
+HORAS_CACHE_COMPOSICION = 24
+
 # El IPC se publica una vez al mes; no hace falta pedirlo a diario.
 HORAS_CACHE_IPC = 24 * 7
 
