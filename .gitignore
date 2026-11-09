@@ -1,13 +1,21 @@
-.venv/
+# Entorno virtual y cachés de Python
+/.venv/
 __pycache__/
 *.pyc
-.env
-.idea/
-.ruff_cache/
+*.pyo
 .pytest_cache/
+.ruff_cache/
+
+# Configuración local y editor
+/.env
+.idea/
 *.iml
-datos/
-salida/
+
+# Datos descargados e informes generados (solo en la raíz del proyecto)
+/datos/
+/salida/
+
+# Empaquetado
 build/
 dist/
 *.egg-info/
